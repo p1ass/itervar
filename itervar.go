@@ -1,6 +1,7 @@
 package itervar
 
 import (
+	"fmt"
 	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
@@ -21,20 +22,36 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	inspector := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
-		(*ast.Ident)(nil),
+		(*ast.ForStmt)(nil),
 	}
 
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		switch n := n.(type) {
-		case *ast.Ident:
-			if n.Name == "gopher" {
-				pass.Reportf(n.Pos(), "identifier is gopher")
-			}
-		}
+	inspector.Preorder(nodeFilter, func(n ast.Node) {
+		ast.Print(pass.Fset, n)
+
+		forStmt := n.(*ast.ForStmt)
+		iterVar := extractIteratorVariable(forStmt)
+		fmt.Println(iterVar)
 	})
 
 	return nil, nil
+}
+
+func extractIteratorVariable(forStmt *ast.ForStmt) string {
+	iterVar := ""
+	switch init := forStmt.Init.(type) {
+	case *ast.AssignStmt:
+		if len(init.Lhs) == 0 {
+			break
+		}
+		switch lhs := init.Lhs[0].(type) {
+		case *ast.Ident:
+			if lhs.Obj.Kind == ast.Var {
+				iterVar = lhs.Name
+			}
+		}
+	}
+	return iterVar
 }
