@@ -1,6 +1,7 @@
 package itervar
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -43,58 +44,64 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
 	iterVar := extractIteratorVariableFromForStmt(forStmt)
-	if iterVar == "" {
+	if iterVar == nil {
 		return
 	}
+
+	typ := pass.TypesInfo.Defs[iterVar]
+	fmt.Println(typ.Type())
 
 	if forStmt.Body == nil {
 		return
 	}
 
 	for _, stmt := range forStmt.Body.List {
-		findUsingIterVarRef(pass, stmt, iterVar)
+		findUsingIterVarRef(pass, stmt, iterVar.Obj.Name)
 	}
 }
 
-func checkRangeStmt(pass *analysis.Pass, forStmt *ast.RangeStmt) {
-	iterVar := extractIteratorVariableFromRangeStmt(forStmt)
-	if iterVar == "" {
+func checkRangeStmt(pass *analysis.Pass, rangeStmt *ast.RangeStmt) {
+	iterVar := extractIteratorVariableFromRangeStmt(rangeStmt)
+	if iterVar == nil {
 		return
 	}
 
-	if forStmt.Body == nil {
+	typ := pass.TypesInfo.Defs[iterVar]
+	fmt.Println(typ.Type())
+
+	if rangeStmt.Body == nil {
 		return
 	}
 
-	for _, stmt := range forStmt.Body.List {
-		findUsingIterVarRef(pass, stmt, iterVar)
+	for _, stmt := range rangeStmt.Body.List {
+		findUsingIterVarRef(pass, stmt, iterVar.Obj.Name)
 	}
 }
 
-func extractIteratorVariableFromForStmt(forStmt *ast.ForStmt) string {
+func extractIteratorVariableFromForStmt(forStmt *ast.ForStmt) *ast.Ident {
 	switch init := forStmt.Init.(type) {
 	case *ast.AssignStmt:
 		return extractIteratorVariableFromAssignStmt(init)
 	}
-	return ""
+	return nil
 }
 
-func extractIteratorVariableFromRangeStmt(rangeStmt *ast.RangeStmt) string {
+func extractIteratorVariableFromRangeStmt(rangeStmt *ast.RangeStmt) *ast.Ident {
 	ident, ok := rangeStmt.Key.(*ast.Ident)
 	if !ok {
-		return ""
+		return nil
 	}
 	assignStmt, ok := ident.Obj.Decl.(*ast.AssignStmt)
 	if !ok {
-		return ""
+		return nil
 	}
 
 	return extractIteratorVariableFromAssignStmt(assignStmt)
 }
 
-func extractIteratorVariableFromAssignStmt(stmt *ast.AssignStmt) string {
+func extractIteratorVariableFromAssignStmt(stmt *ast.AssignStmt) *ast.Ident {
 	if len(stmt.Lhs) == 0 {
-		return ""
+		return nil
 	}
 
 	iterVar := stmt.Lhs[0]
@@ -107,10 +114,10 @@ func extractIteratorVariableFromAssignStmt(stmt *ast.AssignStmt) string {
 		// TODO これがちゃんとイテレータになってるか確認する (インクリメントされてるとか）
 		if iterVar.Obj.Kind == ast.Var {
 
-			return iterVar.Name
+			return iterVar
 		}
 	}
-	return ""
+	return nil
 }
 
 func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar string) {
