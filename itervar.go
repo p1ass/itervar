@@ -26,12 +26,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	nodeFilter := []ast.Node{
 		(*ast.ForStmt)(nil),
+		(*ast.RangeStmt)(nil),
 	}
 
 	inspector.Preorder(nodeFilter, func(n ast.Node) {
 		switch n := n.(type) {
 		case *ast.ForStmt:
 			checkForStmt(pass, n)
+		case *ast.RangeStmt:
+			checkRangeStmt(pass, n)
 		}
 	})
 
@@ -39,7 +42,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
-	iterVar := extractIteratorVariable(forStmt)
+	iterVar := extractIteratorVariableFromForStmt(forStmt)
 	if iterVar == "" {
 		return
 	}
@@ -49,30 +52,68 @@ func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
 	}
 
 	for _, stmt := range forStmt.Body.List {
-		traverseStmt(pass, stmt, iterVar)
+		findUsingIterVarRef(pass, stmt, iterVar)
 	}
 }
 
-func extractIteratorVariable(forStmt *ast.ForStmt) string {
-	iterVar := ""
+func checkRangeStmt(pass *analysis.Pass, forStmt *ast.RangeStmt) {
+	iterVar := extractIteratorVariableFromRangeStmt(forStmt)
+	if iterVar == "" {
+		return
+	}
+
+	if forStmt.Body == nil {
+		return
+	}
+
+	for _, stmt := range forStmt.Body.List {
+		findUsingIterVarRef(pass, stmt, iterVar)
+	}
+}
+
+func extractIteratorVariableFromForStmt(forStmt *ast.ForStmt) string {
 	switch init := forStmt.Init.(type) {
 	case *ast.AssignStmt:
-		if len(init.Lhs) == 0 {
-			break
-		}
-		// TODO １つ以上の場合も考える
-		switch lhs := init.Lhs[0].(type) {
-		case *ast.Ident:
-			// TODO これがちゃんとイテレータになってるか確認する (インクリメントされてるとか）
-			if lhs.Obj.Kind == ast.Var {
-				iterVar = lhs.Name
-			}
-		}
+		return extractIteratorVariableFromAssignStmt(init)
 	}
-	return iterVar
+	return ""
 }
 
-func traverseStmt(pass *analysis.Pass, stmt ast.Stmt, iterVar string) {
+func extractIteratorVariableFromRangeStmt(rangeStmt *ast.RangeStmt) string {
+	ident, ok := rangeStmt.Key.(*ast.Ident)
+	if !ok {
+		return ""
+	}
+	assignStmt, ok := ident.Obj.Decl.(*ast.AssignStmt)
+	if !ok {
+		return ""
+	}
+
+	return extractIteratorVariableFromAssignStmt(assignStmt)
+}
+
+func extractIteratorVariableFromAssignStmt(stmt *ast.AssignStmt) string {
+	if len(stmt.Lhs) == 0 {
+		return ""
+	}
+
+	iterVar := stmt.Lhs[0]
+	if len(stmt.Lhs) > 1 {
+		iterVar = stmt.Lhs[1]
+	}
+
+	switch iterVar := iterVar.(type) {
+	case *ast.Ident:
+		// TODO これがちゃんとイテレータになってるか確認する (インクリメントされてるとか）
+		if iterVar.Obj.Kind == ast.Var {
+
+			return iterVar.Name
+		}
+	}
+	return ""
+}
+
+func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar string) {
 	ast.Inspect(stmt, func(n ast.Node) bool {
 		if n == nil {
 			return true
