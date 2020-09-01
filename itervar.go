@@ -1,9 +1,9 @@
 package itervar
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -48,15 +48,8 @@ func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
 		return
 	}
 
-	typ := pass.TypesInfo.Defs[iterVar]
-	fmt.Println(typ.Type())
-
-	if forStmt.Body == nil {
-		return
-	}
-
 	for _, stmt := range forStmt.Body.List {
-		findUsingIterVarRef(pass, stmt, iterVar.Obj.Name)
+		findUsingIterVarRef(pass, stmt, iterVar)
 	}
 }
 
@@ -66,15 +59,8 @@ func checkRangeStmt(pass *analysis.Pass, rangeStmt *ast.RangeStmt) {
 		return
 	}
 
-	typ := pass.TypesInfo.Defs[iterVar]
-	fmt.Println(typ.Type())
-
-	if rangeStmt.Body == nil {
-		return
-	}
-
 	for _, stmt := range rangeStmt.Body.List {
-		findUsingIterVarRef(pass, stmt, iterVar.Obj.Name)
+		findUsingIterVarRef(pass, stmt, iterVar)
 	}
 }
 
@@ -120,22 +106,43 @@ func extractIteratorVariableFromAssignStmt(stmt *ast.AssignStmt) *ast.Ident {
 	return nil
 }
 
-func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar string) {
+func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident) {
+	typ := pass.TypesInfo.TypeOf(iterVar)
+
 	ast.Inspect(stmt, func(n ast.Node) bool {
 		if n == nil {
 			return true
 		}
 		switch n := n.(type) {
+		// &i を検出
 		case *ast.UnaryExpr:
 			x, ok := n.X.(*ast.Ident)
 			if !ok {
 				return true
 			}
-			if n.Op == token.AND && x.Obj.Kind == ast.Var && x.Obj.Name == iterVar {
+			if n.Op == token.AND && x.Obj.Kind == ast.Var && x.Obj.Name == iterVar.Obj.Name {
+				pass.Reportf(n.Pos(), "using reference to loop iterator variable")
+			}
+		// i[:]を検出する
+		case *ast.SliceExpr:
+			x, ok := n.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+
+			if x.Obj.Kind == ast.Var && x.Obj.Name == iterVar.Obj.Name && IsArray(typ) {
 				pass.Reportf(n.Pos(), "using reference to loop iterator variable")
 			}
 		}
 
 		return true
 	})
+}
+
+func IsArray(typ types.Type) bool {
+	switch typ.(type) {
+	case *types.Array:
+		return true
+	}
+	return false
 }
