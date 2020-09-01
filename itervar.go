@@ -1,7 +1,6 @@
 package itervar
 
 import (
-	"fmt"
 	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
@@ -33,7 +32,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		forStmt := n.(*ast.ForStmt)
 		iterVar := extractIteratorVariable(forStmt)
-		fmt.Println(iterVar)
+		if iterVar == "" {
+			return
+		}
 	})
 
 	return nil, nil
@@ -46,8 +47,10 @@ func extractIteratorVariable(forStmt *ast.ForStmt) string {
 		if len(init.Lhs) == 0 {
 			break
 		}
+		// TODO １つ以上の場合も考える
 		switch lhs := init.Lhs[0].(type) {
 		case *ast.Ident:
+			// TODO これがちゃんとイテレータになってるか確認する (インクリメントされてるとか）
 			if lhs.Obj.Kind == ast.Var {
 				iterVar = lhs.Name
 			}
