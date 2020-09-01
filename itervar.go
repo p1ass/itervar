@@ -2,6 +2,7 @@ package itervar
 
 import (
 	"go/ast"
+	"go/token"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -28,16 +29,28 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	inspector.Preorder(nodeFilter, func(n ast.Node) {
-		ast.Print(pass.Fset, n)
-
-		forStmt := n.(*ast.ForStmt)
-		iterVar := extractIteratorVariable(forStmt)
-		if iterVar == "" {
-			return
+		switch n := n.(type) {
+		case *ast.ForStmt:
+			checkForStmt(pass, n)
 		}
 	})
 
 	return nil, nil
+}
+
+func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
+	iterVar := extractIteratorVariable(forStmt)
+	if iterVar == "" {
+		return
+	}
+
+	if forStmt.Body == nil {
+		return
+	}
+
+	for _, stmt := range forStmt.Body.List {
+		traverseStmt(pass, stmt, iterVar)
+	}
 }
 
 func extractIteratorVariable(forStmt *ast.ForStmt) string {
@@ -57,4 +70,24 @@ func extractIteratorVariable(forStmt *ast.ForStmt) string {
 		}
 	}
 	return iterVar
+}
+
+func traverseStmt(pass *analysis.Pass, stmt ast.Stmt, iterVar string) {
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if n == nil {
+			return true
+		}
+		switch n := n.(type) {
+		case *ast.UnaryExpr:
+			x, ok := n.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			if n.Op == token.AND && x.Obj.Kind == ast.Var && x.Obj.Name == iterVar {
+				pass.Reportf(n.Pos(), "using reference to loop iterator variable")
+			}
+		}
+
+		return true
+	})
 }
