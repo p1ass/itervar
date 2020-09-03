@@ -10,7 +10,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-const doc = "itervar is ..."
+const doc = "itervar is a static analysis tool which detects references to loop iterator variable."
 
 // Analyzer is ...
 var Analyzer = &analysis.Analyzer{
