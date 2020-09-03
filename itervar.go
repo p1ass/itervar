@@ -48,8 +48,10 @@ func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
 		return
 	}
 
-	iterVar := searchIteratorVariableIdent(assignStmt)
-	reportUsingIterVarRef(pass, forStmt.Body, iterVar)
+	iterVars := searchIteratorVariableIdents(assignStmt)
+	for _, iterVar := range iterVars {
+		reportUsingIterVarRef(pass, forStmt.Body, iterVar)
+	}
 
 }
 
@@ -63,27 +65,29 @@ func checkRangeStmt(pass *analysis.Pass, rangeStmt *ast.RangeStmt) {
 		return
 	}
 
-	iterVar := searchIteratorVariableIdent(assignStmt)
-	reportUsingIterVarRef(pass, rangeStmt.Body, iterVar)
+	iterVars := searchIteratorVariableIdents(assignStmt)
+	for _, iterVar := range iterVars {
+		reportUsingIterVarRef(pass, rangeStmt.Body, iterVar)
+	}
 }
 
-func searchIteratorVariableIdent(stmt *ast.AssignStmt) *ast.Ident {
+func searchIteratorVariableIdents(stmt *ast.AssignStmt) []*ast.Ident {
 	if len(stmt.Lhs) == 0 {
 		return nil
 	}
 
-	iterVar := stmt.Lhs[0]
-	if len(stmt.Lhs) > 1 {
-		iterVar = stmt.Lhs[1]
-	}
+	var iterVars []*ast.Ident
 
-	switch iterVar := iterVar.(type) {
-	case *ast.Ident:
-		if iterVar.Obj.Kind == ast.Var {
-			return iterVar
+	for _, expr := range stmt.Lhs {
+		switch expr := expr.(type) {
+		case *ast.Ident:
+			if expr.Obj.Kind == ast.Var {
+				iterVars = append(iterVars, expr)
+			}
 		}
 	}
-	return nil
+
+	return iterVars
 }
 
 func reportUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident) {
