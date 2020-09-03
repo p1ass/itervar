@@ -18,7 +18,7 @@ var flags string
 
 // AnalyzerPlugin provides analyzers as a plugin.
 // It follows golangci-lint style plugin.
-var AnalyzerPlugin analyzerPlugin
+var AnalyzerPlugin analyzerPlugin //nolint
 
 type analyzerPlugin struct{}
 
