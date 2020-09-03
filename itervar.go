@@ -43,45 +43,31 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
-	iterVar := extractIteratorVariableFromForStmt(forStmt)
-	if iterVar == nil {
+	assignStmt, ok := forStmt.Init.(*ast.AssignStmt)
+	if !ok {
 		return
 	}
 
-	findUsingIterVarRef(pass, forStmt.Body, iterVar)
+	iterVar := searchIteratorVariableIdent(assignStmt)
+	reportUsingIterVarRef(pass, forStmt.Body, iterVar)
+
 }
 
 func checkRangeStmt(pass *analysis.Pass, rangeStmt *ast.RangeStmt) {
-	iterVar := extractIteratorVariableFromRangeStmt(rangeStmt)
-	if iterVar == nil {
-		return
-	}
-
-	findUsingIterVarRef(pass, rangeStmt.Body, iterVar)
-}
-
-func extractIteratorVariableFromForStmt(forStmt *ast.ForStmt) *ast.Ident {
-	switch init := forStmt.Init.(type) {
-	case *ast.AssignStmt:
-		return extractIteratorVariableFromAssignStmt(init)
-	}
-	return nil
-}
-
-func extractIteratorVariableFromRangeStmt(rangeStmt *ast.RangeStmt) *ast.Ident {
 	ident, ok := rangeStmt.Key.(*ast.Ident)
 	if !ok {
-		return nil
+		return
 	}
 	assignStmt, ok := ident.Obj.Decl.(*ast.AssignStmt)
 	if !ok {
-		return nil
+		return
 	}
 
-	return extractIteratorVariableFromAssignStmt(assignStmt)
+	iterVar := searchIteratorVariableIdent(assignStmt)
+	reportUsingIterVarRef(pass, rangeStmt.Body, iterVar)
 }
 
-func extractIteratorVariableFromAssignStmt(stmt *ast.AssignStmt) *ast.Ident {
+func searchIteratorVariableIdent(stmt *ast.AssignStmt) *ast.Ident {
 	if len(stmt.Lhs) == 0 {
 		return nil
 	}
@@ -100,7 +86,7 @@ func extractIteratorVariableFromAssignStmt(stmt *ast.AssignStmt) *ast.Ident {
 	return nil
 }
 
-func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident) {
+func reportUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident) {
 	typ := pass.TypesInfo.TypeOf(iterVar)
 
 	ast.Inspect(stmt, func(n ast.Node) bool {
@@ -126,7 +112,7 @@ func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident)
 			if n.Op == token.AND && x.Obj == iterVar.Obj {
 				pass.Reportf(n.Pos(), "using reference to loop iterator variable")
 			}
-		// i[:]を検出する
+		// i[:]を検出
 		case *ast.SliceExpr:
 			x, ok := n.X.(*ast.Ident)
 			if !ok {
