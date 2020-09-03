@@ -8,7 +8,7 @@ itervar is a static analysis tool that detects references to loop iterator varia
 
 ## Features
 
-- Detect code using reference to loop iterator variable, a common mistake in Go 
+Detect code using reference to loop iterator variable, a common mistake in Go. 
 
 https://github.com/golang/go/wiki/CommonMistakes#using-reference-to-loop-iterator-variable
 
