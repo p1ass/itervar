@@ -114,6 +114,18 @@ func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident)
 			return true
 		}
 		switch n := n.(type) {
+		// 再代入されていてたらそのスコープはスキップする
+		case *ast.AssignStmt:
+			for _, expr := range n.Lhs {
+				expr, ok := expr.(*ast.Ident)
+				if !ok {
+					return true
+				}
+				// TODO ここでfalseを返しても子ノードがスキップされるだけで、同一スコープ内のtraverseはされるので困る
+				if expr.Obj.Kind == ast.Var && expr.Obj.Name == iterVar.Obj.Name {
+					return false
+				}
+			}
 		// &i を検出
 		case *ast.UnaryExpr:
 			x, ok := n.X.(*ast.Ident)
