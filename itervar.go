@@ -119,7 +119,7 @@ func reportUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Iden
 				return true
 			}
 
-			if x.Obj == iterVar.Obj && IsArray(typ) {
+			if x.Obj == iterVar.Obj && isArray(typ) {
 				pass.Reportf(n.Pos(), "using reference to loop iterator variable")
 			}
 		}
@@ -128,7 +128,7 @@ func reportUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Iden
 	})
 }
 
-func IsArray(typ types.Type) bool {
+func isArray(typ types.Type) bool {
 	switch typ.(type) {
 	case *types.Array:
 		return true
