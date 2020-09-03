@@ -98,14 +98,6 @@ func reportUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Iden
 			return false
 		}
 
-		// スコープ内で変数を再定義していたら探索をスキップする
-		s := pass.TypesInfo.Scopes[n]
-		if s != nil {
-			if s.Lookup(iterVar.Obj.Name) != nil {
-				return false
-			}
-		}
-
 		switch n := n.(type) {
 		// &i を検出
 		case *ast.UnaryExpr:
