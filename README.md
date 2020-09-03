@@ -32,7 +32,7 @@ func forLoop() {
 GO111MODULE=off go get github.com/p1ass/itervar/cmd/itervar
 ```
 
-### Usage
+## Usage
 
 ```shell script
 go vet -vettool=`which itervar` ./...
