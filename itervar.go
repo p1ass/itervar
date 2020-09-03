@@ -93,9 +93,7 @@ func extractIteratorVariableFromAssignStmt(stmt *ast.AssignStmt) *ast.Ident {
 
 	switch iterVar := iterVar.(type) {
 	case *ast.Ident:
-		// TODO これがちゃんとイテレータになってるか確認する (インクリメントされてるとか）
 		if iterVar.Obj.Kind == ast.Var {
-
 			return iterVar
 		}
 	}
