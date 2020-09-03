@@ -12,6 +12,17 @@ itervar is a static analysis tool that detects references to loop iterator varia
 
 https://github.com/golang/go/wiki/CommonMistakes#using-reference-to-loop-iterator-variable
 
+### Example
+
+```go
+func forLoop() {
+	var out []*int
+	for i := 0; i < 3; i++ {
+		fmt.Println(i)
+		out = append(out, &i) // want "using reference to loop iterator variable"
+	}
+}
+```
 
 ## Installation
 
