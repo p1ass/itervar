@@ -48,9 +48,7 @@ func checkForStmt(pass *analysis.Pass, forStmt *ast.ForStmt) {
 		return
 	}
 
-	for _, stmt := range forStmt.Body.List {
-		findUsingIterVarRef(pass, stmt, iterVar)
-	}
+	findUsingIterVarRef(pass, forStmt.Body, iterVar)
 }
 
 func checkRangeStmt(pass *analysis.Pass, rangeStmt *ast.RangeStmt) {
@@ -59,9 +57,7 @@ func checkRangeStmt(pass *analysis.Pass, rangeStmt *ast.RangeStmt) {
 		return
 	}
 
-	for _, stmt := range rangeStmt.Body.List {
-		findUsingIterVarRef(pass, stmt, iterVar)
-	}
+	findUsingIterVarRef(pass, rangeStmt.Body, iterVar)
 }
 
 func extractIteratorVariableFromForStmt(forStmt *ast.ForStmt) *ast.Ident {
@@ -111,8 +107,17 @@ func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident)
 
 	ast.Inspect(stmt, func(n ast.Node) bool {
 		if n == nil {
-			return true
+			return false
 		}
+
+		// スコープ内で変数を再定義していたら探索をスキップする
+		s := pass.TypesInfo.Scopes[n]
+		if s != nil {
+			if s.Lookup(iterVar.Obj.Name) != nil {
+				return false
+			}
+		}
+
 		switch n := n.(type) {
 		// &i を検出
 		case *ast.UnaryExpr:
