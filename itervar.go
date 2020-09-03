@@ -125,7 +125,7 @@ func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident)
 			if !ok {
 				return true
 			}
-			if n.Op == token.AND && x.Obj.Kind == ast.Var && x.Obj.Name == iterVar.Obj.Name {
+			if n.Op == token.AND && x.Obj == iterVar.Obj {
 				pass.Reportf(n.Pos(), "using reference to loop iterator variable")
 			}
 		// i[:]を検出する
@@ -135,7 +135,7 @@ func findUsingIterVarRef(pass *analysis.Pass, stmt ast.Stmt, iterVar *ast.Ident)
 				return true
 			}
 
-			if x.Obj.Kind == ast.Var && x.Obj.Name == iterVar.Obj.Name && IsArray(typ) {
+			if x.Obj == iterVar.Obj && IsArray(typ) {
 				pass.Reportf(n.Pos(), "using reference to loop iterator variable")
 			}
 		}
